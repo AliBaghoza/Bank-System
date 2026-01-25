@@ -117,7 +117,7 @@ public:
 
 		return clsDate(Day, Month, Year);
 	}
-
+	
 	//  Number of Days – Hours – Minutes – Seconds in a Year
 	static short NumberOfDaysInAYear(short Year)
 	{
