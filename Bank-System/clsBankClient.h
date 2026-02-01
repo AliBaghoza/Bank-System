@@ -45,6 +45,25 @@ private:
 
     }
 
+    struct stTransferLog;
+    static stTransferLog _ConvertTransferLogLineToRecord(string Line, string Seperator = "#//#")
+    {
+        stTransferLog TransferLogRecord;
+
+
+        vector <string> TransferLogDataLine = clsString::Split(Line, Seperator);
+
+        TransferLogRecord.DateTime = TransferLogDataLine[0];
+        TransferLogRecord.AccountSourceClient = TransferLogDataLine[1];
+        TransferLogRecord.AccountDestinationClient = TransferLogDataLine[2];
+        TransferLogRecord.Amount = stod(TransferLogDataLine[3]);
+        TransferLogRecord.BalanceSourceClient = stod(TransferLogDataLine[4]);
+        TransferLogRecord.BalanceDestinationClient = stod(TransferLogDataLine[5]);
+        TransferLogRecord.UserName = TransferLogDataLine[6];
+       
+        return TransferLogRecord;
+
+    }
     static  vector <clsBankClient> _LoadClientsDataFromFile()
     {
 
@@ -149,6 +168,19 @@ private:
         return clsBankClient(enMode::EmptyMode, "", "", "", "", "", "", 0);
     }
 
+    string _PrepareTransferLogRecord(float Amount ,clsBankClient DestinationClient ,string Seperator = "#//#" )
+    {
+        string LoginRecord = "";
+        LoginRecord += clsDate::GetSystemDateTimeString() + Seperator;
+        LoginRecord += AccountNumber() + Seperator;
+        LoginRecord += DestinationClient.AccountNumber() + Seperator;
+        LoginRecord += to_string(Amount) + Seperator;
+        LoginRecord += to_string(AccountBalance) + Seperator;
+        LoginRecord += to_string(DestinationClient.AccountBalance) + Seperator;
+        LoginRecord +=CurrentUser.UserName ;
+        return LoginRecord;
+    }
+
 public:
 
 
@@ -164,6 +196,19 @@ public:
         _AccountBalance = AccountBalance;
 
     }
+
+    struct stTransferLog
+    {
+        string DateTime;
+        string AccountSourceClient;
+        string AccountDestinationClient;
+        double Amount;
+        double BalanceSourceClient;
+        double BalanceDestinationClient;
+        string UserName;
+
+    };
+
 
     bool IsEmpty()
     {
@@ -358,16 +403,19 @@ public:
         Save();
     }
 
+
     bool Withdraw(double Amount)
     {
-        if (Amount <= _AccountBalance)
+        if (Amount > _AccountBalance)
+        {
+            return false;
+        }
+        else
         {
             _AccountBalance -= Amount;
             Save();
-            return true;
         }
-        else 
-            return false;
+
     }
 
     static double GetTotalBalances()
@@ -385,5 +433,67 @@ public:
         return TotalBalances;
     }
 
+    bool Transfer(float Amount, clsBankClient& DestinationClient)
+    {
+        if (Amount > AccountBalance)
+        {
+            return false;
+        }
+
+        Withdraw(Amount);
+        DestinationClient.Deposit(Amount);
+         TransferLog(Amount,DestinationClient);
+
+        return true;
+    }
+
+    void TransferLog(float Amount, clsBankClient DestinationClient)
+    {
+
+        string stDataLine = _PrepareTransferLogRecord(Amount ,DestinationClient);
+
+        fstream MyFile;
+        MyFile.open("TransferLog.txt", ios::out | ios::app);
+
+        if (MyFile.is_open())
+        {
+
+            MyFile << stDataLine << endl;
+
+            MyFile.close();
+        }
+
+    }
+
+    static  vector <stTransferLog> GetTransferLogList()
+    {
+        vector <stTransferLog> vTransferLogRecord;
+
+        fstream MyFile;
+        MyFile.open("TransferLog.txt", ios::in);//read Mode
+
+        if (MyFile.is_open())
+        {
+
+            string Line;
+
+            stTransferLog TransferLogRecord;
+
+            while (getline(MyFile, Line))
+            {
+
+                TransferLogRecord = _ConvertTransferLogLineToRecord(Line);
+
+                vTransferLogRecord.push_back(TransferLogRecord);
+
+            }
+
+            MyFile.close();
+
+        }
+
+        return vTransferLogRecord;
+
+    }
 };
 
